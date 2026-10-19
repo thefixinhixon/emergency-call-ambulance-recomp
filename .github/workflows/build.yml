@@ -13,7 +13,7 @@ jobs:
       matrix:
         compiler: [gcc, clang]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install dependencies
@@ -28,7 +28,7 @@ jobs:
   windows-cross:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install dependencies
@@ -45,7 +45,7 @@ jobs:
             -DECA_HOST_PPCRECOMP=$PWD/build/tools/ppcrecomp/ppcrecomp
       - name: Build
         run: cmake --build build-win --target eca
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: eca-windows-x86_64-no-recompiled-code
           path: build-win/run/eca.exe

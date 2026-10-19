@@ -1,0 +1,8 @@
+# User-supplied ROMs and anything derived from them (never commit)
+roms/*
+!roms/README.md
+generated/
+analysis/
+build*/
+*.gpr
+*.rep/

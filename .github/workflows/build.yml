@@ -1,0 +1,51 @@
+# CI has no ROM set, so it checks that the tools and the hybrid core build; the
+# recompiled code is generated on the user's machine from their own ROMs.
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsdl2-dev libglu1-mesa-dev zlib1g-dev
+      - name: Configure
+        run: |
+          if [ "${{ matrix.compiler }}" = clang ]; then export CC=clang CXX=clang++; fi
+          cmake -S . -B build -G Ninja
+      - name: Build
+        run: cmake --build build
+
+  windows-cross:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build mingw-w64 libsdl2-dev libglu1-mesa-dev zlib1g-dev
+      - name: Host tools
+        run: |
+          cmake -S . -B build -G Ninja
+          cmake --build build --target m68kmake romtool ppcrecomp
+      - name: Configure (MinGW-w64)
+        run: |
+          cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake \
+            -DM68KMAKE_EXECUTABLE=$PWD/build/m68kmake \
+            -DECA_HOST_ROMTOOL=$PWD/build/tools/romtool/romtool \
+            -DECA_HOST_PPCRECOMP=$PWD/build/tools/ppcrecomp/ppcrecomp
+      - name: Build
+        run: cmake --build build-win --target eca
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eca-windows-x86_64-no-recompiled-code
+          path: build-win/run/eca.exe

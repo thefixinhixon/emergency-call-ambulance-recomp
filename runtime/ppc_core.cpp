@@ -31,6 +31,7 @@
 #include <SDL.h>
 #include <algorithm>
 #include <atomic>
+#include <bit>        // before Supermodel.h, which defines a rotl() macro
 #include <chrono>
 #include <cstddef>
 #include <cstdio>

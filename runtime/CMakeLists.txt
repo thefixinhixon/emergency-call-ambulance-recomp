@@ -53,6 +53,14 @@ if(ECA_RECOMPILE AND EXISTS "${ECA_ROMSET}")
 else()
   message(STATUS "ECA: no ROM set at ${ECA_ROMSET}; building the hybrid core without recompiled code")
   list(APPEND ECA_GEN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/empty_table.cpp)
+  # The run directory still needs a Games.xml that only lists ECA_GAME (see romtool.cpp)
+  set(XMLDIR ${GEN}/xml)
+  add_custom_command(
+    OUTPUT ${XMLDIR}/Games.xml
+    COMMAND ${ROMTOOL_CMD} ${SM}/Config/Games.xml - ${ECA_GAME} ${XMLDIR}
+    DEPENDS ${ROMTOOL_DEP} ${SM}/Config/Games.xml
+    COMMENT "Writing Games.xml for ${ECA_GAME}")
+  add_custom_target(eca_games_xml DEPENDS ${XMLDIR}/Games.xml)
 endif()
 
 add_executable(eca ${SM}/Src/OSD/SDL/Main.cpp ppc_core.cpp launcher.cpp hdtex.cpp ${ECA_PATCHED_NEW3D_SOURCES} ${ECA_GEN_SOURCES})
@@ -80,4 +88,9 @@ if(ECA_RECOMPILE AND EXISTS "${ECA_ROMSET}")
     # Running ./eca with no arguments opens Supermodel's launcher, which lists ROMs/
     COMMAND ${CMAKE_COMMAND} -E make_directory ${RUNDIR}/ROMs
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${ROMDIR}/${ECA_GAME}.zip ${RUNDIR}/ROMs/${ECA_GAME}.zip)
+else()
+  add_dependencies(eca eca_games_xml)
+  add_custom_command(TARGET eca POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${XMLDIR}/Games.xml ${RUNDIR}/Config/Games.xml
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${RUNDIR}/ROMs)
 endif()

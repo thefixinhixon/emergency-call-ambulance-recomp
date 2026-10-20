@@ -201,6 +201,8 @@ namespace
     const char *mode = getenv("ECA_PPC_MODE");
     g_stock = mode && !strcmp(mode, "stock");
     g_useNative = !(mode && (!strcmp(mode, "interp") || g_stock));
+    if (ppcr_num_units == 0)   // built without a ROM set: every lookup would miss
+      g_stock = true, g_useNative = false;
     g_stats = getenv("ECA_PPC_STATS") != nullptr;
     if (const char *p = getenv("ECA_PPC_MISSLOG"))
       g_missLogPath = p;
@@ -231,7 +233,7 @@ namespace
     }
 
     fprintf(stderr, "[ppc] hybrid core: %u recompiled entry points, %u RAM units, native code %s\n",
-            ppcr_num_units, ppcr_num_ram_units, g_useNative ? "enabled" : "disabled (ECA_PPC_MODE)");
+            ppcr_num_units, ppcr_num_ram_units, g_useNative ? "enabled" : ppcr_num_units ? "disabled (ECA_PPC_MODE)" : "not built (no ROM set at build time)");
     atexit(WriteMissLog);
   }
 

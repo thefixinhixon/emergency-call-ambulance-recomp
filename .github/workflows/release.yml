@@ -1,0 +1,73 @@
+# Pushing a tag v* builds the Linux and Windows packages and publishes them as a
+# GitHub release. The packages are built without a ROM set, so they contain no game
+# code: the PowerPC code runs on Supermodel's interpreter (tools/package_release.sh
+# refuses a build that holds recompiled code).
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    # Oldest supported runner, so the binary works on older glibc
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libsdl2-dev libglu1-mesa-dev zlib1g-dev
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DECA_RECOMPILE=OFF
+          cmake --build build --target eca romtool
+      - name: Package
+        run: tools/package_release.sh build eca-${{ github.ref_name }}-linux-x86_64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: eca-*-linux-x86_64.tar.gz
+
+  windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build mingw-w64 libsdl2-dev libglu1-mesa-dev zlib1g-dev zip
+      - name: Host tools
+        run: |
+          cmake -S . -B build -G Ninja -DECA_RECOMPILE=OFF
+          cmake --build build --target m68kmake romtool
+      - name: Build (MinGW-w64)
+        run: |
+          cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake -DECA_RECOMPILE=OFF \
+            -DM68KMAKE_EXECUTABLE=$PWD/build/m68kmake \
+            -DECA_HOST_ROMTOOL=$PWD/build/tools/romtool/romtool
+          cmake --build build-win --target eca romtool
+      - name: Package
+        run: tools/package_release.sh build-win eca-${{ github.ref_name }}-windows-x86_64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: eca-*-windows-x86_64.zip
+
+  publish:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" \
+            --notes-file packaging/RELEASE_NOTES.md eca-*-linux-x86_64.tar.gz eca-*-windows-x86_64.zip

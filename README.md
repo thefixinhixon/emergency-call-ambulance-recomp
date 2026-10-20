@@ -35,6 +35,16 @@ roms/eca.zip ─► romtool ─► crom.bin (big-endian) ─► ppcrecomp ─►
   interpreter otherwise. The result is instruction-exact with Supermodel's interpreter,
   which the RAM test below checks.
 
+## Prebuilt releases
+
+The [releases page](https://github.com/thefixinhixon/emergency-call-ambulance-recomp/releases)
+has Linux and Windows packages, built by `.github/workflows/release.yml` when a `v*` tag is
+pushed. They are built without a ROM set (`-DECA_RECOMPILE=OFF`), so they hold no game code
+and run the PowerPC code on Supermodel's interpreter. Everything else is the same. Put your
+`eca.zip` in `ROMs/` and run `eca`; `packaging/README.txt` is the README shipped with them.
+`tools/package_release.sh` makes the same packages from a local build, and refuses a build
+that contains recompiled code.
+
 ## Building
 
 Requirements: CMake ≥ 3.24, Ninja (optional), a C++20 compiler, SDL2 and OpenGL/GLU

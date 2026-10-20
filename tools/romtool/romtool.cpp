@@ -2,6 +2,7 @@
 // regions the recompiler and Ghidra need.
 //
 //   romtool <Games.xml> <romset.zip> <game> <out_dir>
+//   romtool <Games.xml> - <game> <out_dir>      (only write the filtered Games.xml)
 //
 // GameLoader always picks the first game it finds in a merged set (e.g. "ecaj"
 // from a set that also holds eca/ecap/ecau), so we first write a Games.xml that
@@ -97,6 +98,8 @@ int main(int argc, char **argv)
   }
   auto filtered_xml = (out_dir / "Games.xml").string();
   xml.SaveFile(filtered_xml.c_str());
+  if (std::string(argv[2]) == "-")
+    return 0;
 
   auto game_zip = out_dir / (wanted + ".zip");
   if (ExtractNestedZip(argv[2], wanted + ".zip", game_zip))

@@ -20,10 +20,11 @@ RUNNING
   2. Start eca (Windows: eca.exe) with no arguments. The launcher opens: pick
      settings, then Launch. "eca ROMs/eca.zip" skips the launcher.
 
-  Linux needs SDL2, OpenGL and GLU from your distribution, for example
-      Debian/Ubuntu: sudo apt install libsdl2-2.0-0 libglu1-mesa
-      Fedora:        sudo dnf install SDL2 mesa-libGLU
-      Arch:          sudo pacman -S sdl2 glu
+  Linux needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 or later) and
+  OpenGL with GLU, which most desktops already have; otherwise
+      Debian/Ubuntu: sudo apt install libglu1-mesa
+      Fedora:        sudo dnf install mesa-libGLU
+      Arch:          sudo pacman -S glu
   Windows needs nothing extra.
 
 

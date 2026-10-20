@@ -7,6 +7,6 @@ The prebuilt packages run the PowerPC code on Supermodel's interpreter, which re
 | Package | Notes |
 |---|---|
 | `…-windows-x86_64.zip` | Self-contained, no DLLs needed |
-| `…-linux-x86_64.tar.gz` | Needs SDL2, OpenGL and GLU from your distribution (glibc 2.35+, e.g. Ubuntu 22.04 or newer) |
+| `…-linux-x86_64.tar.gz` | Needs glibc 2.35+ (Ubuntu 22.04 or newer) and OpenGL/GLU; SDL2 is built in |
 
 Each package also has `tools/romtool` plus the texture scripts, for making the optional HD texture pack from your ROM with Real-ESRGAN.

@@ -13,17 +13,25 @@ permissions:
 
 jobs:
   linux:
-    # Oldest supported runner, so the binary works on older glibc
+    # Oldest supported runner, so the binary works on older glibc. Its GCC 11 and
+    # SDL 2.0.20 are too old for Supermodel, so use GCC 12 and a static SDL2 built from
+    # source (its video/audio backends are loaded at run time, so the package only needs
+    # the system's OpenGL and GLU).
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y ninja-build libsdl2-dev libglu1-mesa-dev zlib1g-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++-12 libglu1-mesa-dev zlib1g-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev \
+            libwayland-dev libxkbcommon-dev libegl-dev libdecor-0-dev \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev libdbus-1-dev
       - name: Build
         run: |
-          cmake -S . -B build -G Ninja -DECA_RECOMPILE=OFF
+          CC=gcc-12 CXX=g++-12 cmake -S . -B build -G Ninja -DECA_RECOMPILE=OFF -DECA_VENDOR_SDL=ON
           cmake --build build --target eca romtool
       - name: Package
         run: tools/package_release.sh build eca-${{ github.ref_name }}-linux-x86_64

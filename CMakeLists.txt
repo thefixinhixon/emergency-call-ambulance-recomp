@@ -64,6 +64,10 @@ add_custom_command(
   DEPENDS ${MUSASHI_DIR}/m68k_in.c ${MUSASHI_DIR}/m68kmake.c
   COMMENT "Generating Musashi 68K opcode handlers")
 
+# Patched Supermodel copies (New3D hooks, extended joystick axes). Must run
+# before supermodel_core so the patched sources can replace the originals.
+include(cmake/patch_supermodel.cmake)
+
 # --- Supermodel device library (everything except the PPC core and frontend) --
 set(SM_SOURCES
   CPU/PowerPC/PPCDisasm.cpp BlockFile.cpp Pkgs/unzip.c Pkgs/ioapi.c Model3/93C46.cpp Model3/JTAG.cpp
@@ -139,7 +143,6 @@ target_link_libraries(supermodel_ref PRIVATE supermodel_core $<$<BOOL:${WIN32}>:
 # stb_image / stb_image_write (public domain) for texture pack PNGs
 FetchContent_Declare(stb GIT_REPOSITORY https://github.com/nothings/stb.git GIT_TAG 2c980bb59875b0d32144a71867fbdebb2f77cd20)
 FetchContent_MakeAvailable(stb)
-include(cmake/patch_supermodel.cmake)
 
 # --- Tools --------------------------------------------------------------------
 add_subdirectory(tools/romtool)

@@ -1,0 +1,40 @@
+# Guards against ever committing original ROMs or ROM-derived bytes.
+# .gitignore excludes these paths, but `git add -f` overrides it and fresh
+# clones don't install the local pre-commit hook, so this CI check is the
+# server-side backstop. See tools/githooks/pre-commit for the local hook.
+name: rom-guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-roms:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Refuse tracked ROM-derived files
+        run: |
+          set -euo pipefail
+          bad=$(git ls-files | grep -Ei '\.(zip|bin|nv|chd|cue|gdi|iso)$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Tracked ROM-derived files must never be committed:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "No tracked ROM-derived files."
+      - name: Refuse unexpectedly large tracked files
+        run: |
+          set -euo pipefail
+          # 20 MB tripwire for renamed ROMs. trailer/ holds the project's own
+          # video/screenshots and is excluded.
+          big=$(git ls-files | grep -v '^trailer/' | while IFS= read -r f; do
+            size=$(stat -c%s "$f")
+            if [ "$size" -gt 20971520 ]; then echo "$f ($size bytes)"; fi
+          done)
+          if [ -n "$big" ]; then
+            echo "::error::Unexpectedly large tracked files (possible renamed ROMs):"
+            echo "$big"
+            exit 1
+          fi
+          echo "No large tracked files."

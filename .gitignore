@@ -1,8 +1,16 @@
-# User-supplied ROMs and anything derived from them (never commit)
+# User-supplied ROMs and anything derived from them (never commit).
+# The *.zip/*.bin/*.nv rules are intentionally global: ROM sets turn up as
+# eca.zip, scud.zip, nested zips, extracted .bin regions and NVRAM saves in
+# many directories (repo root, run/ROMs/, analysis/, ...), and none of those
+# bytes may ever be committed.
 roms/*
 !roms/README.md
+*.zip
+*.bin
+*.nv
 generated/
 analysis/
 build*/
 *.gpr
 *.rep/
+__pycache__/

@@ -1,0 +1,22 @@
+#!/bin/sh
+# rom-guard pre-commit hook: refuse to commit original ROMs or ROM-derived bytes.
+#
+# .gitignore already excludes these paths, but `git add -f` overrides it, so
+# this hook is the backstop. Install once per checkout:
+#   git config core.hooksPath tools/githooks
+set -eu
+
+fail=0
+for f in $(git diff --cached --name-only --diff-filter=ACM); do
+  case "$f" in
+    *.zip|*.bin|*.nv|*.chd|*.cue|*.gdi|*.iso)
+      echo "rom-guard: refusing to commit ROM-derived file: $f" >&2
+      fail=1
+      ;;
+  esac
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "rom-guard: original ROMs and anything derived from them must never be committed." >&2
+  exit 1
+fi

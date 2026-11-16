@@ -63,7 +63,7 @@ else()
   add_custom_target(eca_games_xml DEPENDS ${XMLDIR}/Games.xml)
 endif()
 
-add_executable(eca ${SM}/Src/OSD/SDL/Main.cpp ppc_core.cpp launcher.cpp hdtex.cpp ${ECA_PATCHED_NEW3D_SOURCES} ${ECA_GEN_SOURCES})
+add_executable(eca ${SM}/Src/OSD/SDL/Main.cpp ppc_core.cpp launcher.cpp hdtex.cpp ffb_rom.cpp ${ECA_PATCHED_NEW3D_SOURCES} ${ECA_GEN_SOURCES})
 target_include_directories(eca PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${SM}/Src/Graphics/New3D ${stb_SOURCE_DIR})
 # Built like the rest of Supermodel: C++17 (Util/BitCast.h breaks under C++20), no warnings
 set_source_files_properties(${ECA_PATCHED_NEW3D_SOURCES} PROPERTIES

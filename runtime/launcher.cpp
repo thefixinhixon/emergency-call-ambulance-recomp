@@ -31,6 +31,7 @@
 #include "Pkgs/imgui/imgui_impl_sdl2.h"
 #include "Util/ConfigBuilders.h"
 #include "Util/NewConfig.h"
+#include "ffb_rom.h"
 
 namespace
 {
@@ -101,6 +102,7 @@ namespace
     bool forceFeedback = false;
     bool triggersRestAtMin = true;
     int steerSaturation = 100, steerDeadZone = 2;
+    int pedalMin = -32768, pedalOff = 0, pedalMax = 32767;
 
     bool multiThreaded = true, gpuThreaded = true;
     int cpuCore = 0;      // 0 = recompiled, 1 = interpreter (not saved: debugging aid)
@@ -117,6 +119,7 @@ namespace
            a.flipStereo == b.flipStereo && a.channels == b.channels && a.legacyDsp == b.legacyDsp &&
            a.forceFeedback == b.forceFeedback && a.triggersRestAtMin == b.triggersRestAtMin &&
            a.steerSaturation == b.steerSaturation && a.steerDeadZone == b.steerDeadZone &&
+           a.pedalMin == b.pedalMin && a.pedalOff == b.pedalOff && a.pedalMax == b.pedalMax &&
            a.multiThreaded == b.multiThreaded && a.gpuThreaded == b.gpuThreaded;
   }
 
@@ -170,6 +173,9 @@ namespace
     s.triggersRestAtMin = Get(eff, "InputJoy1RZOffVal", 0) == -32768;
     s.steerSaturation = std::clamp(Get(eff, "InputJoy1XSaturation", 100), 50, 200);
     s.steerDeadZone = std::clamp(Get(eff, "InputJoy1XDeadZone", 2), 0, 50);
+    s.pedalMin = std::clamp(Get(eff, "InputJoy1YMinVal", -32768), -32768, 32767);
+    s.pedalOff = std::clamp(Get(eff, "InputJoy1YOffVal", 0), -32768, 32767);
+    s.pedalMax = std::clamp(Get(eff, "InputJoy1YMaxVal", 32767), -32768, 32767);
 
     s.multiThreaded = Get(eff, "MultiThreaded", true);
     s.gpuThreaded = Get(eff, "GPUMultiThreaded", true);
@@ -213,6 +219,9 @@ namespace
     i("InputJoy1RZOffVal", s.triggersRestAtMin ? -32768 : 0);
     i("InputJoy1XSaturation", s.steerSaturation);
     i("InputJoy1XDeadZone", s.steerDeadZone);
+    i("InputJoy1YMinVal", s.pedalMin);
+    i("InputJoy1YOffVal", s.pedalOff);
+    i("InputJoy1YMaxVal", s.pedalMax);
 
     b("MultiThreaded", s.multiThreaded);
     b("GPUMultiThreaded", s.gpuThreaded);
@@ -346,6 +355,8 @@ namespace
 
     bool m_launch = false, m_quit = false, m_firstFrame = true;
     PackInfo m_pack;
+    char m_scudBuf[512] = {};
+    bool m_scudBufInit = false;
 
     Util::Config::Node &Section()
     {
@@ -614,6 +625,28 @@ namespace
     ImGui::SliderInt("Steering range", &s.steerSaturation, 50, 200, "%d%%");
     Help("How far the stick must move for full lock. Above 100% makes thumbstick steering less twitchy.");
     ImGui::SliderInt("Steering dead zone", &s.steerDeadZone, 0, 50, "%d%%");
+    ImGui::SeparatorText("Pedals");
+    ImGui::TextWrapped("Wheels with 9+ axes (e.g. G29 separate pedals) can now bind the brake "
+                        "directly: use Set/Add above and move the pedal. It appears as "
+                        "JOY1_AXIS9..12 / JOY1_SLIDER3..6.");
+    int yminmax[3] = {s.pedalMin, s.pedalOff, s.pedalMax};
+    if (ImGui::InputInt3("Pedal Y min/off/max", yminmax))
+    {
+      s.pedalMin = std::clamp(yminmax[0], -32768, 32767);
+      s.pedalOff = std::clamp(yminmax[1], -32768, 32767);
+      s.pedalMax = std::clamp(yminmax[2], -32768, 32767);
+    }
+    Help("Calibration for joystick 1's Y axis. Needed for the Logitech combined-pedals "
+         "workaround: gas+brake share Y (gas negative, brake positive, rest centred), but each "
+         "pedal only reaches about half travel, so uncalibrated pedals read ~50%. Use "
+         "Min -16000, Off 0, Max 16000 for that setup. Separate pedals normally keep the "
+         "defaults (-32768 / 0 / 32767).");
+    if (ImGui::Button("Reset pedal calibration"))
+    {
+      s.pedalMin = -32768;
+      s.pedalOff = 0;
+      s.pedalMax = 32767;
+    }
     ImGui::Checkbox("Force feedback", &s.forceFeedback);
     Help("Sends the cabinet's steering wheel force feedback to a supported wheel or rumble pad.");
   }
@@ -654,6 +687,51 @@ namespace
       if (ImGui::Button("Cancel"))
         ImGui::CloseCurrentPopup();
       ImGui::EndPopup();
+    }
+
+    ImGui::SeparatorText("Force feedback ROM");
+    {
+      std::string rom = RomPath();
+      bool hasFfb = !rom.empty() && EcaFfb::HasDriveboardRom(rom);
+      if (rom.empty())
+      {
+        ImGui::TextDisabled("Put eca.zip in ROMs/ first.");
+      }
+      else if (hasFfb)
+      {
+        ImGui::TextDisabled("Force feedback ROM present (epr-19338a.bin).");
+      }
+      else
+      {
+        ImGui::TextWrapped("Force feedback needs the optional drive-board ROM (epr-19338a.bin, "
+                            "64 KB, CRC C9FAC464). It is not part of the eca set; the same file "
+                            "ships with Scud Race (scud.zip). Without it the game runs but the "
+                            "wheel stays limp - see Supermodel.log: 'driveboard_program ... could "
+                            "not be loaded'.");
+        if (!m_scudBufInit)
+        {
+          std::string romDir = Get<std::string>(m_effective, "ROMDirectory", "ROMs/");
+          std::string def = (std::filesystem::path(romDir) / "scud.zip").string();
+          snprintf(m_scudBuf, sizeof(m_scudBuf), "%s", def.c_str());
+          m_scudBufInit = true;
+        }
+        ImGui::InputText("Scud zip", m_scudBuf, sizeof(m_scudBuf));
+        Help("Path to your Scud Race ROM set. Only epr-19338a.bin is read from it; "
+             "nothing else is modified. Tip: put scud.zip next to eca.zip in ROMs/.");
+        bool scudExists = std::filesystem::exists(m_scudBuf);
+        if (!scudExists)
+          ImGui::TextDisabled("That scud.zip was not found - check the path.");
+        ImGui::BeginDisabled(!scudExists);
+        if (ImGui::Button("Import FFB ROM into eca.zip"))
+        {
+          std::string err;
+          if (EcaFfb::ImportFromScud(rom, m_scudBuf, err))
+            m_status = "Imported epr-19338a.bin into " + rom + ".";
+          else
+            m_status = "FFB import failed: " + err;
+        }
+        ImGui::EndDisabled();
+      }
     }
 
     ImGui::SeparatorText("Files");
